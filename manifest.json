@@ -1,0 +1,7 @@
+{
+    "name": "Copy Raw Message",
+    "description": "Remake of DevilBro's BD Copy Raw Message plugin. I used some code created by Juby210#0577",
+    "author": "mic0#2704",
+    "version": "1.0.0",
+    "license": "ODbL-1.0"
+}
