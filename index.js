@@ -4,6 +4,7 @@ const { getModule, React } = require("powercord/webpack");
 const { inject, uninject } = require("powercord/injector");
 
 const CopyRawButton = require("./CopyRawButton");
+const copyMessageContents = require("./copyMessageContents");
 
 module.exports = class CopyRawMessage extends Plugin {
   startPlugin() {
@@ -12,20 +13,21 @@ module.exports = class CopyRawMessage extends Plugin {
   }
 
   pluginWillUnload() {
-    this.addButtons(true, true);
+    uninject("copy-raw-message");
+    uninject("copy-raw-message-context-menu");
     document
       .querySelectorAll(".copy-raw-message")
       .forEach((e) => (e.style.display = "none"));
   }
 
-  async addButtons(repatch, unpatch) {
-    if (repatch) {
-      uninject("copy-raw-message");
-    }
-    if (unpatch) return;
+  async addButtons() {
     const MiniPopover = await getModule(
       (m) => m?.default?.displayName === "MiniPopover"
     );
+    const MessageContextMenu = await getModule(
+      (m) => m?.default?.displayName === "MessageContextMenu"
+    );
+    const { MenuGroup, MenuItem } = await getModule(["MenuGroup", "MenuItem"]);
     inject("copy-raw-message", MiniPopover, "default", (_, res) => {
       const props = findInReactTree(res, (r) => r?.message);
       if (
@@ -42,5 +44,36 @@ module.exports = class CopyRawMessage extends Plugin {
       return res;
     });
     MiniPopover.default.displayName = "MiniPopover";
+    inject(
+      "copy-raw-message-context-menu",
+      MessageContextMenu,
+      "default",
+      (args, res) => {
+        if (
+          !args[0]?.message ||
+          !res?.props?.children ||
+          (!args[0].message.content && !args[0].message.attachments[0]?.url)
+        )
+          return res;
+
+        res.props.children.splice(
+          4,
+          0,
+          React.createElement(
+            MenuGroup,
+            null,
+            React.createElement(MenuItem, {
+              action: () => {
+                copyMessageContents(args[0].message);
+              },
+              id: "copy-raw-message",
+              label: "Copy Raw",
+            })
+          )
+        );
+        return res;
+      }
+    );
+    MessageContextMenu.default.displayName = "MessageContextMenu";
   }
 };
