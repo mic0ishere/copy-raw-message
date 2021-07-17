@@ -65,7 +65,6 @@ module.exports = class CopyRawMessage extends Plugin {
           id: "copy-raw-message",
           label: "Copy Text (Raw)",
         });
-        console.log(res.props.children, copyId);
         if (copyId)
           copyId.props.children = [reactElement, copyId.props.children];
         else
