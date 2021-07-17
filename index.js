@@ -55,22 +55,25 @@ module.exports = class CopyRawMessage extends Plugin {
           (!args[0].message.content && !args[0].message.attachments[0]?.url)
         )
           return res;
-
-        res.props.children.splice(
-          4,
-          0,
-          React.createElement(
-            MenuGroup,
-            null,
-            React.createElement(MenuItem, {
-              action: () => {
-                copyMessageContents(args[0].message);
-              },
-              id: "copy-raw-message",
-              label: "Copy Raw",
-            })
-          )
+        const copyId = res.props.children?.find(
+          (x) => x.props?.children?.key == "devmode-copy-id"
         );
+        const reactElement = React.createElement(MenuItem, {
+          action: () => {
+            copyMessageContents(args[0].message);
+          },
+          id: "copy-raw-message",
+          label: "Copy Text (Raw)",
+        });
+        console.log(res.props.children, copyId);
+        if (copyId)
+          copyId.props.children = [reactElement, copyId.props.children];
+        else
+          res.props.children.splice(
+            -1,
+            0,
+            React.createElement(MenuGroup, null, reactElement)
+          );
         return res;
       }
     );

@@ -8,7 +8,7 @@ const { Button } =
 class CopyRawButton extends React.PureComponent {
   constructor(props) {
     super(props);
-	this.message = props.message;
+    this.message = props.message;
   }
 
   clickHandler(event) {
