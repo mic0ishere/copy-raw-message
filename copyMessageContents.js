@@ -9,7 +9,9 @@ module.exports = function (message) {
       .filter((x) => !content.includes(x))
       .join("\n");
     if (attachments.length > 0)
-      content += `${content.endsWith("\n") || content.length > 0 ? "" : "\n"}${attachments}`;
+      content += `${
+        content.endsWith("\n") || content.length === 0 ? "" : "\n"
+      }${attachments}`;
   }
   clipboard.copy(content);
 

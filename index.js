@@ -6,6 +6,7 @@ const { inject, uninject } = require("powercord/injector");
 const CopyRawButton = require("./CopyRawButton");
 const copyMessageContents = require("./copyMessageContents");
 const copyEmbedContents = require("./copyEmbedContents");
+const { patchMessage } = require("./lib");
 
 module.exports = class CopyRawMessage extends Plugin {
   startPlugin() {
@@ -42,9 +43,10 @@ module.exports = class CopyRawMessage extends Plugin {
         return res;
       res.props.children.unshift(
         React.createElement(CopyRawButton, {
-          message: props.message,
+          message: patchMessage(props.message),
           tooltip: "Copy raw message",
           copyFunction: copyMessageContents,
+          type: "message",
         })
       );
       return res;
@@ -60,9 +62,10 @@ module.exports = class CopyRawMessage extends Plugin {
 
       res.props.children.unshift(
         React.createElement(CopyRawButton, {
-          message: props.message,
+          message: patchMessage(props.message),
           tooltip: "Copy raw embed(s)",
           copyFunction: copyEmbedContents,
+          type: "embed",
         })
       );
       return res;
@@ -85,10 +88,10 @@ module.exports = class CopyRawMessage extends Plugin {
         );
         const reactElement = React.createElement(MenuItem, {
           action: () => {
-            copyMessageContents(args[0].message);
+            copyMessageContents(patchMessage(args[0].message));
           },
           id: "copy-raw-message",
-          label: "Copy Content [Raw]",
+          label: "Copy Message Content [Raw]",
         });
         if (copyId)
           copyId.props.children = [reactElement, copyId.props.children];
@@ -102,7 +105,7 @@ module.exports = class CopyRawMessage extends Plugin {
       }
     );
     inject(
-      "copy-raw-message-context-menu",
+      "copy-raw-embed-context-menu",
       MessageContextMenu,
       "default",
       (args, res) => {
@@ -119,7 +122,7 @@ module.exports = class CopyRawMessage extends Plugin {
         );
         const reactElement = React.createElement(MenuItem, {
           action: () => {
-            copyEmbedContents(args[0].message);
+            copyEmbedContents(patchMessage(args[0].message));
           },
           id: "copy-raw-embed",
           label: "Copy Embed(s) [Raw]",
