@@ -15,10 +15,8 @@ module.exports = class CopyRawMessage extends Plugin {
   }
 
   pluginWillUnload() {
-    uninject("copy-raw-message");
-    uninject("copy-raw-embed");
-    uninject("copy-raw-message-context-menu");
-    uninject("copy-raw-embed-context-menu");
+    uninject("copy-raw-popover");
+    uninject("copy-raw-context-menu");
     document
       .querySelectorAll(".copy-raw-message")
       .forEach((e) => (e.style.display = "none"));
@@ -33,111 +31,94 @@ module.exports = class CopyRawMessage extends Plugin {
     );
     const { MenuGroup, MenuItem } = await getModule(["MenuGroup", "MenuItem"]);
 
-    inject("copy-raw-message", MiniPopover, "default", (_, res) => {
-      const props = findInReactTree(res, (r) => r?.message);
-      if (
-        !props ||
-        (props.message.content?.length === 0 &&
-          props.message.attachments?.length === 0)
-      )
-        return res;
-      res.props.children.unshift(
-        React.createElement(CopyRawButton, {
-          message: patchMessage(props.message),
-          tooltip: "Copy raw message",
-          copyFunction: copyMessageContents,
-          type: "message",
-        })
-      );
-      return res;
-    });
+    if (MiniPopover) {
+      inject("copy-raw-popover", MiniPopover, "default", (_, res) => {
+        const props = findInReactTree(res, (r) => r?.message);
+        if (!props) return res;
 
-    inject("copy-raw-embed", MiniPopover, "default", (_, res) => {
-      const props = findInReactTree(res, (r) => r?.message);
-      if (
-        !props ||
-        props.message.embeds?.filter((e) => e.type === "rich").length === 0
-      )
-        return res;
+        const embeds = props.message?.embeds?.filter((e) => e.type === "rich");
 
-      res.props.children.unshift(
-        React.createElement(CopyRawButton, {
-          message: patchMessage(props.message),
-          tooltip: "Copy raw embed(s)",
-          copyFunction: copyEmbedContents,
-          type: "embed",
-        })
-      );
-      return res;
-    });
-    MiniPopover.default.displayName = "MiniPopover";
-
-    inject(
-      "copy-raw-message-context-menu",
-      MessageContextMenu,
-      "default",
-      (args, res) => {
         if (
-          !args[0]?.message ||
-          !res?.props?.children ||
-          (!args[0].message.content && !args[0].message.attachments[0]?.url)
-        )
-          return res;
-        const copyId = res.props.children?.find(
-          (x) => x.props?.children?.key == "devmode-copy-id"
-        );
-        const reactElement = React.createElement(MenuItem, {
-          action: () => {
-            copyMessageContents(patchMessage(args[0].message));
-          },
-          id: "copy-raw-message",
-          label: "Copy Message Content [Raw]",
-        });
-        if (copyId)
-          copyId.props.children = [reactElement, copyId.props.children];
-        else
-          res.props.children.splice(
-            -1,
-            0,
-            React.createElement(MenuGroup, null, reactElement)
+          props.message?.content?.length > 0 ||
+          props.message?.attachments?.length > 0
+        ) {
+          res.props.children.unshift(
+            React.createElement(CopyRawButton, {
+              message: patchMessage(props.message),
+              tooltip: "Copy raw message",
+              copyFunction: copyMessageContents,
+              type: "message",
+            })
           );
-        return res;
-      }
-    );
-    inject(
-      "copy-raw-embed-context-menu",
-      MessageContextMenu,
-      "default",
-      (args, res) => {
-        if (
-          !args[0]?.message ||
-          !res?.props?.children ||
-          !args[0].message.embeds ||
-          args[0].message.embeds?.filter((e) => e.type === "rich").length === 0
-        )
-          return res;
+        }
 
-        const copyId = res.props.children?.find(
-          (x) => x.props?.children?.key == "devmode-copy-id"
-        );
-        const reactElement = React.createElement(MenuItem, {
-          action: () => {
-            copyEmbedContents(patchMessage(args[0].message));
-          },
-          id: "copy-raw-embed",
-          label: "Copy Embed(s) [Raw]",
-        });
-        if (copyId)
-          copyId.props.children = [reactElement, copyId.props.children];
-        else
-          res.props.children.splice(
-            -1,
-            0,
-            React.createElement(MenuGroup, null, reactElement)
+        if (embeds.length > 0) {
+          res.props.children.unshift(
+            React.createElement(CopyRawButton, {
+              message: patchMessage(props.message),
+              tooltip: `Copy raw embed${embeds.length > 1 ? "s" : ""}`,
+              copyFunction: copyEmbedContents,
+              type: "embed",
+            })
           );
+        }
+
         return res;
-      }
-    );
-    MessageContextMenu.default.displayName = "MessageContextMenu";
+      });
+      MiniPopover.default.displayName = "MiniPopover";
+    }
+
+    if (MessageContextMenu) {
+      inject(
+        "copy-raw-context-menu",
+        MessageContextMenu,
+        "default",
+        (args, res) => {
+          const embeds = args[0]?.message?.embeds?.filter(
+            (e) => e.type === "rich"
+          );
+          if (!res?.props?.children) return res;
+
+          const copyId = res.props.children?.find(
+            (x) => x.props?.children?.key == "message-devmode-copy-id"
+          );
+          const copyRawMessage = React.createElement(MenuItem, {
+            action: () => {
+              copyMessageContents(patchMessage(args[0].message));
+            },
+            id: "copy-raw-message",
+            label: "Copy raw message",
+          });
+
+          const copyRawEmbed = React.createElement(MenuItem, {
+            action: () => {
+              copyEmbedContents(patchMessage(args[0].message));
+            },
+            id: "copy-raw-embed",
+            label: `Copy raw embed${embeds.length > 1 ? "s" : ""}`,
+          });
+
+          const result = [];
+
+          if (embeds.length > 0) {
+            result.push(copyRawEmbed);
+          }
+          if (args[0].message.content.length > 0) {
+            result.push(copyRawMessage);
+          }
+
+          if (copyId)
+            copyId.props.children = [...result, copyId.props.children];
+          else
+            res.props.children.splice(
+              -1,
+              0,
+              React.createElement(MenuGroup, null, result)
+            );
+          return res;
+        }
+      );
+      MessageContextMenu.default.displayName = "MessageContextMenu";
+    }
   }
 };
